@@ -1,11 +1,15 @@
 import os
 import sqlalchemy
+from dotenv import load_dotenv
 from langchain_community.utilities import SQLDatabase
 from sqlalchemy import URL
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import inspect
+from app.db.models.UnicattLatestNews import UnicattLatestNews
 
 from app.db.models.BaseModel import Base
 
+load_dotenv()
 
 class DbConnection:
 
@@ -48,3 +52,16 @@ class DbConnection:
         connection_url = self.__url_object()
         db = SQLDatabase.from_uri(connection_url)
         return db
+
+
+    @classmethod
+    def db_init(cls):
+        db = cls()
+        engine = db.create_engine()
+        inspector = inspect(engine)
+        if inspector.has_table("unicatt_latest_news"):
+            UnicattLatestNews.__table__.drop(engine)
+            print("Dropped existing table.")
+
+        Base.metadata.create_all(bind=engine)
+        print("Created fresh tables.")

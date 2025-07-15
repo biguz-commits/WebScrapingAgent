@@ -38,9 +38,12 @@ def reset_tables():
     Base.metadata.create_all(bind=engine)
     print("Created fresh tables.")
 
-#if __name__ == "__main__":
-    #reset_tables()
 
+def db():
+    db = DbConnection()
+    #print(f"database name: {db.database_name}")
+    #print(f"user name: {db.user_name}")
+    db.db_init()
 
 if __name__ == '__main__':
-    main()
+    db()
