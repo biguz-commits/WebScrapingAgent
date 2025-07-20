@@ -1,9 +1,14 @@
+# scrapy runspider quotes_spider.py
+
+from typing import Tuple
+
 import scrapy
 from dotenv import load_dotenv
 
+from app.agent.Embeddings import Embeddings
 from app.db.DbConnection import DbConnection
 from app.db.services.UnicattService import UnicattService
-import os
+
 
 load_dotenv()
 
@@ -13,6 +18,9 @@ class WebScraper(scrapy.Spider):
     start_urls = [
         'https://www.unicatt.it/',
     ]
+
+    def __init__(self):
+        self.embeddings = Embeddings()
 
     def parse(self, response):
         """Parses and stores the scraped data in memory."""
@@ -38,6 +46,7 @@ class WebScraper(scrapy.Spider):
         db, service = self.__get_db_and_service()
 
         for item in scraped_items:
+            item["embedding"] = self.embeddings.vectorialize(item["text"])
             existing = db.query(service.model).filter_by(title=item["title"]).first()
 
             if existing:
@@ -50,8 +59,10 @@ class WebScraper(scrapy.Spider):
         db.close()
 
     @staticmethod
-    def  __get_db_and_service():
+    def  __get_db_and_service() -> Tuple:
         db = DbConnection()
         db_session = db.create_session()
         service = UnicattService()
         return db_session, service
+
+
