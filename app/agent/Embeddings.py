@@ -2,7 +2,6 @@ from typing import List, Type
 
 from pydantic import BaseModel
 from requests import Session
-from rich.table import Column
 from sentence_transformers import SentenceTransformer
 import numpy as np
 

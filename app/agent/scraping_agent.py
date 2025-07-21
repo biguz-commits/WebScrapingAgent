@@ -1,65 +1,37 @@
-### Fallo funzionare in un grafo langgraph
-### Aggiungi migrazioni per gestire la logica del db
-### Aggiungi un job che aggiorna il db ogni tot leggedno i contenuti della homepage unicatt
-### Rendi i contenuti vettori, così da avere una generazione della risposta molto migliore
-### Crea la UI con typescript
-
-
-
-from typing import TypedDict
-from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
-
-from dotenv import load_dotenv
-from typing_extensions import Annotated
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable
+from langchain_core.output_parsers import StrOutputParser
 
 from app.agent.client import get_model
-from app.agent.prompt import get_prompt
-from app.db.DbConnection import DbConnection
+from app.agent.tools.vector_tool import vector_tool
 
 
-load_dotenv()
+def unicatt_assistant(user_input: str) -> str:
+    """
+    This function invokes an AI assistant that answers user questions
+    about the latest news published on the official Università Cattolica website.
+    It uses a vector search tool to retrieve relevant information.
 
-llm = get_model()
-query_prompt_template = get_prompt()
+    Args:
+        user_input (str): The user's natural language question.
 
-db = DbConnection()
-db = db.langchain_db()
+    Returns:
+        str: The assistant's answer.
+    """
 
-
-class QueryOutput(TypedDict):
-    """Generated SQL query."""
-
-    query: Annotated[str, ..., "Syntactically valid SQL query."]
-
-
-def write_query(question:str):
-    """Generate SQL query to fetch information."""
-    prompt = query_prompt_template.invoke(
-        {
-            "dialect": db.dialect,
-            "top_k": 10,
-            "table_info": db.get_table_info(),
-            "input": question,
-        }
+    prompt = ChatPromptTemplate.from_template(
+        "You are a helpful assistant designed to answer user questions "
+        "based on the latest news published on the official website of "
+        "Università Cattolica del Sacro Cuore (https://www.unicatt.it/). "
+        "Use the data retrieved from the vector database to respond accurately and informatively. "
+        "If there is not enough information in the database, politely say so. "
+        "Always respond in a professional and clear tone."
     )
-    structured_llm = llm.with_structured_output(QueryOutput)
-    result = structured_llm.invoke(prompt)
-    return {"query": result["query"]}
 
+    llm = get_model()
 
-def execute_query(query: str):
-    """Execute SQL query."""
-    execute_query_tool = QuerySQLDatabaseTool(db=db)
-    return {"result": execute_query_tool.invoke(query)}
+    chain: Runnable = prompt | llm.bind_tools([vector_tool]) | StrOutputParser()
 
-def generate_answer(state: State):
-    """Answer question using retrieved information as context."""
-    prompt = (
-        "Given the following user question, corresponding SQL query, "
-        "and SQL result, answer the user question.\n\n"
-        f'Question: {state["question"]}\n'
-        f'SQL Query: {state["query"]}\n'
-        f'SQL Result: {state["result"]}'
-    )
-    response = llm.invoke(prompt)
-    return {"answer": response.content}
+    response = chain.invoke({"input": user_input})
+    return response
+

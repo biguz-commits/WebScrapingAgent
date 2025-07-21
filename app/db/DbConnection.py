@@ -3,7 +3,7 @@ import sqlalchemy
 from dotenv import load_dotenv
 from langchain_community.utilities import SQLDatabase
 from sqlalchemy import URL
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import inspect
 from app.db.models.UnicattLatestNews import UnicattLatestNews
 
@@ -39,10 +39,13 @@ class DbConnection:
         engine = sqlalchemy.create_engine(url)
         return engine
 
-    def create_session(self):
+    def create_session(self) -> Session:
         engine = self.create_engine()
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        return SessionLocal()
+        try:
+            yield SessionLocal
+        finally:
+            SessionLocal.close_all()
 
     def create_tables(self):
         engine = self.create_engine()
